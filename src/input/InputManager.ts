@@ -64,6 +64,7 @@ export class InputManager {
   read(invertPitch: boolean): Controls {
     const k = (c: string) => (this.down.has(c) ? 1 : 0);
     let pitch = k('ArrowUp') - k('ArrowDown');
+    if (invertPitch) pitch = -pitch; // カーソルキーのみ反転
     let yaw = k('ArrowRight') - k('ArrowLeft');
     let roll = k('KeyD') - k('KeyA');
     let throttleDelta = k('KeyW') - k('KeyS');
@@ -88,7 +89,6 @@ export class InputManager {
       break;
     }
     const c = (v: number) => Math.max(-1, Math.min(1, v));
-    if (invertPitch) pitch = -pitch;
     return { pitch: c(pitch), yaw: c(yaw), roll: c(roll), throttleDelta: c(throttleDelta), boost, fire };
   }
 }

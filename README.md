@@ -28,7 +28,7 @@ npm run build   # type-check + production build
 | Key | Action |
 | --- | --- |
 | W / S | Throttle up / down |
-| Arrow Up / Down | Pitch |
+| Arrow Up / Down | Pitch (inverted: Up = nose down; set `flight.invertPitch` in `src/config.ts`) |
 | Arrow Left / Right | Turn |
 | A / D | Roll |
 | Shift | Boost |

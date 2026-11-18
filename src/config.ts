@@ -6,8 +6,10 @@ export const config = {
     /** 内部描画解像度の縦ピクセル数（横はアスペクト比から算出）。640x360相当 = 360 */
     height: 360,
     dither: true,
+    /** 低解像度RTのMSAAサンプル数（0で無効） */
+    msaa: 4,
     /** 1チャンネルあたりの階調数 */
-    levels: 30,
+    levels: 48,
   },
   flight: {
     minSpeed: 62,
@@ -22,7 +24,7 @@ export const config = {
     bankTurn: 1.05,
     autoLevel: 1.5,
     gravityPitch: 30,
-    invertPitch: false,
+    invertPitch: true,
     startAltitude: 150,
     /** 開始位置(XZ)。広い海と遠景の群島が見える場所 */
     startX: -300,

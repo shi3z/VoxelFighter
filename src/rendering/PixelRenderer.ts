@@ -5,8 +5,8 @@ import { shared } from './Materials';
 THREE.ColorManagement.enabled = false;
 
 /**
- * レトロ3D描画: シーンを低解像度RenderTarget(アンチエイリアス無し)に描き、
- * Nearest Neighborで画面に拡大。拡大時にBayerディザ+階調制限を掛ける。
+ * レトロ3D描画: シーンを低解像度RenderTarget(MSAA付き)に描き、
+ * シャープバイリニアで画面に拡大。拡大時にBayerディザ+階調制限を掛ける。
  */
 export class PixelRenderer {
   readonly renderer: THREE.WebGLRenderer;
@@ -21,7 +21,7 @@ export class PixelRenderer {
   onResize?: (w: number, h: number) => void;
 
   constructor(private container: HTMLElement) {
-    this.renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', alpha: false });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', alpha: false });
     this.renderer.setClearColor(0xa6d4ee, 1);
     this.renderer.autoClear = true;
     this.renderer.info.autoReset = false;
@@ -34,10 +34,11 @@ export class PixelRenderer {
         res: { value: new THREE.Vector2(this.width, this.height) },
         levels: { value: config.render.levels },
         dither: { value: config.render.dither ? 1 : 0 },
+        scale: { value: 3 },
       },
       vertexShader: /* glsl */ `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
       fragmentShader: /* glsl */ `
-        uniform sampler2D tex; uniform vec2 res; uniform float levels; uniform float dither;
+        uniform sampler2D tex; uniform vec2 res; uniform float levels; uniform float dither; uniform float scale;
         varying vec2 vUv;
         float bayer(vec2 p){
           int x = int(mod(p.x, 4.0)); int y = int(mod(p.y, 4.0));
@@ -53,7 +54,13 @@ export class PixelRenderer {
           return (v + 0.5) / 16.0;
         }
         void main(){
-          vec3 c = texture2D(tex, vUv).rgb;
+          // シャープバイリニア: テクセル内部はくっきり、境界だけ1画面ピクセル幅で補間してジャギーを和らげる
+          vec2 p = vUv * res;
+          vec2 fr = fract(p);
+          // テクセル境界から 1 画面ピクセル分だけ隣と補間し、内部は単色のまま
+          float sx = clamp(fr.x * scale, 0.0, 0.5) + clamp((fr.x - 1.0) * scale + 0.5, 0.0, 0.5);
+          float sy = clamp(fr.y * scale, 0.0, 0.5) + clamp((fr.y - 1.0) * scale + 0.5, 0.0, 0.5);
+          vec3 c = texture2D(tex, (floor(p) + vec2(sx, sy)) / res).rgb;
           float L = levels - 1.0;
           float b = dither > 0.5 ? bayer(floor(vUv * res)) : 0.5;
           c = floor(c * L + b) / L;
@@ -72,10 +79,10 @@ export class PixelRenderer {
 
   private makeTarget(w: number, h: number): THREE.WebGLRenderTarget {
     const t = new THREE.WebGLRenderTarget(w, h, {
-      minFilter: THREE.NearestFilter,
-      magFilter: THREE.NearestFilter,
+      minFilter: THREE.LinearFilter,
+      magFilter: THREE.LinearFilter,
       depthBuffer: true,
-      samples: 0,
+      samples: config.render.msaa,
       generateMipmaps: false,
     });
     return t;
@@ -94,6 +101,7 @@ export class PixelRenderer {
     this.target = this.makeTarget(w, h);
     this.blit.uniforms.tex.value = this.target.texture;
     this.blit.uniforms.res.value.set(w, h);
+    this.blit.uniforms.scale.value = Math.max(1, (W * this.renderer.getPixelRatio()) / w);
     this.onResize?.(w, h);
   }
 
